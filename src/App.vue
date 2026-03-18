@@ -42,11 +42,11 @@
             <div class="checkbox-group">
               <label class="checkbox-label" :class="{ active: selectedLangs.includes('vi') }">
                 <input type="checkbox" value="vi" v-model="selectedLangs">
-                🇻🇳 Tiếng Việt
+                Tiếng Việt
               </label>
               <label class="checkbox-label" :class="{ active: selectedLangs.includes('en') }">
                 <input type="checkbox" value="en" v-model="selectedLangs">
-                🇬🇧 English
+                English
               </label>
             </div>
           </div>
@@ -60,11 +60,10 @@
           <div v-if="results.length > 0" class="result-container">
             <div v-for="res in results" :key="res.lang" class="language-block">
               <div class="result-header">
-                <span class="flag-icon">{{ res.lang === 'vi' ? '🇻🇳' : '🇬🇧' }}</span>
                 <p class="result-label">
                   Kết quả {{ res.lang === 'vi' ? 'Tiếng Việt' : 'English' }}
                 </p>
-                <span class="badge">{{ searchMethod.toUpperCase() }}</span>
+                <!-- <span class="badge">{{ searchMethod.toUpperCase() }}</span> -->
               </div>
 
               <div v-if="searchMethod === 'beam'" class="result-box single">
@@ -92,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { aiApi } from './api' // Giữ nguyên kết nối API của bạn
 
 const selectedFile = ref(null)
@@ -101,6 +100,10 @@ const searchMethod = ref('beam')
 const selectedLangs = ref(['vi', 'en'])
 const results = ref([])
 const loading = ref(false)
+
+watch(searchMethod, () => {
+  results.value = []
+})
 
 const onFileChange = (e) => {
   const file = e.target.files[0]
@@ -138,7 +141,6 @@ const uploadImage = async () => {
       }
       return { lang, data };
     });
-
     results.value = await Promise.all(apiCalls);
   } catch (error) {
     alert("Lỗi: " + error.message)
