@@ -3,21 +3,10 @@
     <div class="dashboard-layout">
 
       <div class="left-panel">
-        <div 
-          class="upload-box-fullscreen" 
-          :class="{ 'has-image': imageUrls.length > 0 }" 
-          @click="$refs.fileInput.click()"
-          @dragover.prevent 
-          @drop.prevent="handleDrop"
-        >
-          <input 
-            type="file" 
-            ref="fileInput" 
-            class="hidden-input" 
-            accept="image/*" 
-            :multiple="uploadMode === 'batch'" 
-            @change="onFileChange" 
-          />
+        <div class="upload-box-fullscreen" :class="{ 'has-image': imageUrls.length > 0 }"
+          @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="handleDrop">
+          <input type="file" ref="fileInput" class="hidden-input" accept="image/*" :multiple="uploadMode === 'batch'"
+            @change="onFileChange" />
 
           <div v-if="imageUrls.length === 0" class="placeholder">
             <p>Kéo thả ảnh hoặc click để chọn</p>
@@ -27,6 +16,14 @@
 
           <div v-else class="preview-container-fullscreen">
             <img :src="imageUrls[activeIndex]" class="preview-img-fullscreen" />
+            <button v-if="uploadMode === 'batch' && imageUrls.length > 1" 
+              class="nav-btn prev-btn" @click.stop="prevImage">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button v-if="uploadMode === 'batch' && imageUrls.length > 1" 
+              class="nav-btn next-btn" @click.stop="nextImage">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
             <div class="overlay-fullscreen">
               <span>Click hoặc Kéo thả thêm ảnh vào đây</span>
             </div>
@@ -34,16 +31,12 @@
         </div>
 
         <div v-if="uploadMode === 'batch' && imageUrls.length > 0" class="thumbnail-gallery">
-          <div 
-            v-for="(url, index) in imageUrls" 
-            :key="index"
-            class="thumbnail"
-            :class="{ 'active-thumb': activeIndex === index }"
-            @click="activeIndex = index"
-          >
+          <div v-for="(url, index) in imageUrls" :key="index" class="thumbnail"
+            :class="{ 'active-thumb': activeIndex === index }" @click="activeIndex = index">
             <img :src="url" />
             <div v-if="allResults[index] && allResults[index].length > 0" class="status-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+                stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </div>
@@ -61,18 +54,10 @@
           <div class="config-section">
             <label>Chế độ Tải lên:</label>
             <div class="mode-tabs">
-              <button 
-                class="tab-btn" 
-                :class="{ active: uploadMode === 'single' }" 
-                @click="uploadMode = 'single'"
-              >
+              <button class="tab-btn" :class="{ active: uploadMode === 'single' }" @click="uploadMode = 'single'">
                 1 Ảnh (Single)
               </button>
-              <button 
-                class="tab-btn" 
-                :class="{ active: uploadMode === 'batch' }" 
-                @click="uploadMode = 'batch'"
-              >
+              <button class="tab-btn" :class="{ active: uploadMode === 'batch' }" @click="uploadMode = 'batch'">
                 Nhiều Ảnh (Batch)
               </button>
             </div>
@@ -98,12 +83,8 @@
             </div>
           </div>
 
-          <button 
-            @click="uploadImage" 
-            :disabled="filesList.length === 0 || loading || selectedLangs.length === 0"
-            class="submit-btn" 
-            :class="{ 'loading': loading }"
-          >
+          <button @click="uploadImage" :disabled="filesList.length === 0 || loading || selectedLangs.length === 0"
+            class="submit-btn" :class="{ 'loading': loading }">
             <span v-if="loading">Đang phân tích dữ liệu...</span>
             <span v-else>
               {{ uploadMode === 'single' ? 'Sinh chú thích ngay!' : `Sinh chú thích cho ${filesList.length} ảnh!` }}
@@ -207,10 +188,10 @@ const prepareFiles = (newFiles) => {
     // Chế độ nhiều ảnh: Nối thêm vào mảng cũ
     filesList.value = [...filesList.value, ...newFiles]
     imageUrls.value = [...imageUrls.value, ...newFiles.map(f => URL.createObjectURL(f))]
-    
+
     // Khởi tạo mảng kết quả trống tương ứng với số lượng ảnh
     allResults.value = new Array(filesList.value.length).fill(null)
-    
+
     // Tự động nhảy UI sang ảnh vừa mới được thêm vào đầu tiên
     activeIndex.value = filesList.value.length - newFiles.length
   }
@@ -236,7 +217,7 @@ const uploadImage = async () => {
           : await aiApi.getTopKCaptionsSingle(file, lang);
         return { lang, data };
       });
-      
+
       const currentRes = await Promise.all(apiCalls);
       allResults.value[0] = currentRes;
 
@@ -251,7 +232,7 @@ const uploadImage = async () => {
 
       // resolvedLangs trả về dạng: [ {lang: 'vi', resultsArray: [...]}, {lang: 'en', resultsArray: [...]} ]
       const resolvedLangs = await Promise.all(apiCalls);
-      
+
       // Khởi tạo lại cấu trúc mảng để map ngược vào UI
       const newAllResults = Array.from({ length: filesList.value.length }, () => []);
 
@@ -280,12 +261,33 @@ const uploadImage = async () => {
     loading.value = false
   }
 }
+
+const nextImage = () => {
+  if (activeIndex.value < imageUrls.value.length - 1) {
+    activeIndex.value++; // Tới ảnh tiếp theo
+  } else {
+    activeIndex.value = 0; // Đang ở ảnh cuối thì quay lại ảnh đầu
+  }
+}
+
+const prevImage = () => {
+  if (activeIndex.value > 0) {
+    activeIndex.value--; // Lùi lại ảnh trước
+  } else {
+    activeIndex.value = imageUrls.value.length - 1; // Đang ở ảnh đầu thì quay về ảnh cuối
+  }
+}
 </script>
 
 <style scoped>
 /* Reset cơ bản */
-* { box-sizing: border-box; }
-.hidden-input { display: none; }
+* {
+  box-sizing: border-box;
+}
+
+.hidden-input {
+  display: none;
+}
 
 .app-container {
   height: 100vh;
@@ -310,7 +312,8 @@ const uploadImage = async () => {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px; /* Khoảng cách giữa Preview và Thumbnails */
+  gap: 16px;
+  /* Khoảng cách giữa Preview và Thumbnails */
 }
 
 .upload-box-fullscreen {
@@ -406,10 +409,12 @@ const uploadImage = async () => {
 .thumbnail-gallery::-webkit-scrollbar {
   height: 6px;
 }
+
 .thumbnail-gallery::-webkit-scrollbar-track {
   background: #0f172a;
   border-radius: 10px;
 }
+
 .thumbnail-gallery::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 10px;
@@ -456,7 +461,7 @@ const uploadImage = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .status-icon svg {
@@ -495,10 +500,22 @@ const uploadImage = async () => {
   overflow-y: auto;
 }
 
-.content-scrollable::-webkit-scrollbar { width: 6px; }
-.content-scrollable::-webkit-scrollbar-track { background: #f1f1f1; }
-.content-scrollable::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.content-scrollable::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.content-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content-scrollable::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.content-scrollable::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.content-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 
 .config-section {
   margin-bottom: 20px;
@@ -540,7 +557,7 @@ const uploadImage = async () => {
 .tab-btn.active {
   background: white;
   color: #2563eb;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .dropdown {
@@ -554,62 +571,234 @@ const uploadImage = async () => {
   outline: none;
 }
 
-.dropdown:focus { border-color: #2563eb; background-color: white; }
+.dropdown:focus {
+  border-color: #2563eb;
+  background-color: white;
+}
 
-.checkbox-group { display: flex; gap: 12px; }
+.checkbox-group {
+  display: flex;
+  gap: 12px;
+}
 
 .checkbox-label {
-  display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1;
-  padding: 12px; border-radius: 10px; border: 1px solid #d1d5db; background-color: #f9fafb;
-  cursor: pointer; transition: all 0.2s ease; font-size: 14px; font-weight: 600; user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 600;
+  user-select: none;
 }
 
-.checkbox-label.active { background-color: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
-.checkbox-label input { accent-color: #2563eb; width: 16px; height: 16px; }
+.checkbox-label.active {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.checkbox-label input {
+  accent-color: #2563eb;
+  width: 16px;
+  height: 16px;
+}
 
 .submit-btn {
-  width: 100%; margin-top: 10px; padding: 16px; background-color: #2563eb; color: white;
-  border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;
-  transition: all 0.2s; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  width: 100%;
+  margin-top: 10px;
+  padding: 16px;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
 }
-.submit-btn:hover:not(:disabled) { background-color: #1d4ed8; transform: translateY(-2px); }
-.submit-btn:disabled { background-color: #9ca3af; box-shadow: none; cursor: not-allowed; }
-.submit-btn.loading { animation: pulse 1.5s infinite; }
 
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+.submit-btn:hover:not(:disabled) {
+  background-color: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.submit-btn:disabled {
+  background-color: #9ca3af;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.submit-btn.loading {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
 
 /* KẾT QUẢ AI */
-.result-container { margin-top: 30px; animation: fadeIn 0.4s ease-out; }
-.empty-state { margin-top: 40px; text-align: center; color: #9ca3af; font-size: 14px; font-style: italic; padding: 40px 0; border: 2px dashed #e5e7eb; border-radius: 12px; }
+.result-container {
+  margin-top: 30px;
+  animation: fadeIn 0.4s ease-out;
+}
 
-.language-block { margin-bottom: 24px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02); }
-.result-header { display: flex; align-items: center; background: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; gap: 8px; }
-.result-label { font-size: 13px; font-weight: 700; color: #334155; margin: 0; flex: 1; text-transform: uppercase; }
+.empty-state {
+  margin-top: 40px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+  font-style: italic;
+  padding: 40px 0;
+  border: 2px dashed #e5e7eb;
+  border-radius: 12px;
+}
 
-.result-box { padding: 16px; background-color: white; }
-.result-box.single { border-left: 4px solid #3b82f6; }
-.error-box { background-color: #fef2f2; border-left: 4px solid #ef4444; }
-.error-text { color: #b91c1c; margin: 0; font-weight: 500; }
+.language-block {
+  margin-bottom: 24px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
 
-.result-list { display: flex; flex-direction: column; }
-.list-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px !important; border-bottom: 1px solid #f1f5f9; margin: 0; }
-.list-item:last-child { border-bottom: none; }
+.result-header {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 8px;
+}
+
+.result-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0;
+  flex: 1;
+  text-transform: uppercase;
+}
+
+.result-box {
+  padding: 16px;
+  background-color: white;
+}
+
+.result-box.single {
+  border-left: 4px solid #3b82f6;
+}
+
+.error-box {
+  background-color: #fef2f2;
+  border-left: 4px solid #ef4444;
+}
+
+.error-text {
+  color: #b91c1c;
+  margin: 0;
+  font-weight: 500;
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #f1f5f9;
+  margin: 0;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
 
 .index-tag {
-  background: #3b82f6; color: white; width: 24px; height: 24px; border-radius: 6px;
-  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0; margin-top: 2px;
+  background: #3b82f6;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
-.index-tag.en { background: #10b981; }
 
-.result-text { font-size: 16px; color: #1f2937; margin: 0; line-height: 1.6; }
+.index-tag.en {
+  background: #10b981;
+}
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.result-text {
+  font-size: 16px;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.6;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* Responsive Mobile */
 @media (max-width: 900px) {
-  .dashboard-layout { flex-direction: column; overflow-y: auto; }
-  .left-panel { flex: none; height: 50vh; padding: 16px; }
-  .right-panel { width: 100%; min-width: 100%; height: auto; box-shadow: none; border-top: 1px solid #e5e7eb; }
-  .app-container { overflow-y: auto; height: auto; min-height: 100vh; }
+  .dashboard-layout {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .left-panel {
+    flex: none;
+    height: 50vh;
+    padding: 16px;
+  }
+
+  .right-panel {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    box-shadow: none;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .app-container {
+    overflow-y: auto;
+    height: auto;
+    min-height: 100vh;
+  }
 }
 </style>
