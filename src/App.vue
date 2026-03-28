@@ -68,7 +68,7 @@
             <label for="search-method">Thuật toán sinh:</label>
             <select id="search-method" v-model="searchMethod" class="dropdown">
               <option value="beam">Một câu</option>
-              <option value="topk">Năm câu đa dạng</option>
+              <option value="topk">Ba câu đa dạng</option>
             </select>
           </div>
 
