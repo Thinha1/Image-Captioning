@@ -9,23 +9,18 @@ export const aiApi = {
 
     // ==========================================
     // CHẾ ĐỘ 1: XỬ LÝ 1 ẢNH (SINGLE)
-    // Nhận vào 1 Object File. Trả về String hoặc Array(5 câu)
     // ==========================================
 
     async getBeamCaptionSingle(imageFile, lang) {
         const formData = new FormData();
-        // Backend mới yêu cầu key là 'files' (số nhiều) dù chỉ gửi 1 ảnh
         formData.append('files', imageFile); 
         formData.append('lang', lang);
 
         try {
             const response = await apiClient.post('/predict_beamsearch', formData);
-            
             if (response.data.status === 'completed') {
                 const firstResult = response.data.results[0];
-                if (firstResult.status === 'success') {
-                    return firstResult.caption; // Trả về thẳng câu caption (String)
-                }
+                if (firstResult.status === 'success') return firstResult.caption;
                 throw new Error(firstResult.message);
             }
             throw new Error("Định dạng phản hồi từ server không hợp lệ");
@@ -41,12 +36,9 @@ export const aiApi = {
 
         try {
             const response = await apiClient.post('/predict_topk', formData);
-            
             if (response.data.status === 'completed') {
                 const firstResult = response.data.results[0];
-                if (firstResult.status === 'success') {
-                    return firstResult.captions; // Trả về mảng 5 câu caption (Array)
-                }
+                if (firstResult.status === 'success') return firstResult.captions;
                 throw new Error(firstResult.message);
             }
             throw new Error("Định dạng phản hồi từ server không hợp lệ");
@@ -55,25 +47,18 @@ export const aiApi = {
         }
     },
 
-
     // ==========================================
     // CHẾ ĐỘ 2: XỬ LÝ NHIỀU ẢNH (BATCH)
-    // Nhận vào 1 mảng File []. Trả về mảng các kết quả
     // ==========================================
 
     async getBeamCaptionBatch(imageFilesArray, lang) {
         const formData = new FormData();
-        // Lặp qua mảng ảnh và gộp tất cả vào cùng một key 'files'
-        imageFilesArray.forEach(file => {
-            formData.append('files', file);
-        });
+        imageFilesArray.forEach(file => formData.append('files', file));
         formData.append('lang', lang);
 
         try {
             const response = await apiClient.post('/predict_beamsearch', formData);
-            if (response.data.status === 'completed') {
-                return response.data.results; // Trả về nguyên mảng kết quả của tất cả ảnh
-            }
+            if (response.data.status === 'completed') return response.data.results;
             throw new Error("Định dạng phản hồi từ server không hợp lệ");
         } catch (error) {
             throw new Error("Lỗi Beam Search (Nhiều ảnh): " + error.message);
@@ -82,19 +67,35 @@ export const aiApi = {
 
     async getTopKCaptionsBatch(imageFilesArray, lang) {
         const formData = new FormData();
-        imageFilesArray.forEach(file => {
-            formData.append('files', file);
-        });
+        imageFilesArray.forEach(file => formData.append('files', file));
         formData.append('lang', lang);
 
         try {
             const response = await apiClient.post('/predict_topk', formData);
-            if (response.data.status === 'completed') {
-                return response.data.results; // Trả về nguyên mảng kết quả của tất cả ảnh
-            }
+            if (response.data.status === 'completed') return response.data.results;
             throw new Error("Định dạng phản hồi từ server không hợp lệ");
         } catch (error) {
             throw new Error("Lỗi Top-k (Nhiều ảnh): " + error.message);
+        }
+    },
+
+    // ==========================================
+    // API MỚI: XUẤT DATASET COCO DẠNG ZIP
+    // ==========================================
+    
+    async exportCocoBatch(imageFilesArray, lang) {
+        const formData = new FormData();
+        imageFilesArray.forEach(file => formData.append('files', file));
+        formData.append('lang', lang);
+
+        try {
+            const response = await apiClient.post('/export_coco_dataset', formData, {
+                // Rất quan trọng: Báo cho Axios biết đây là file nhị phân
+                responseType: 'blob' 
+            });
+            return response.data; // Trả về Blob để tải xuống
+        } catch (error) {
+            throw new Error("Lỗi xuất file COCO từ server: " + error.message);
         }
     }
 };

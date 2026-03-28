@@ -16,14 +16,15 @@
 
           <div v-else class="preview-container-fullscreen">
             <img :src="imageUrls[activeIndex]" class="preview-img-fullscreen" />
-            <button v-if="uploadMode === 'batch' && imageUrls.length > 1" 
-              class="nav-btn prev-btn" @click.stop="prevImage">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+
+            <button class="delete-btn" @click.stop="removeImage(activeIndex)" title="Xóa ảnh này">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
             </button>
-            <button v-if="uploadMode === 'batch' && imageUrls.length > 1" 
-              class="nav-btn next-btn" @click.stop="nextImage">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
+
             <div class="overlay-fullscreen">
               <span>Click hoặc Kéo thả thêm ảnh vào đây</span>
             </div>
@@ -46,7 +47,7 @@
 
       <div class="right-panel">
         <div class="header">
-          <h1 class="title">Sports Caption AI</h1>
+          <h1 class="title">Sport Image Caption</h1>
         </div>
 
         <div class="content-scrollable">
@@ -66,8 +67,8 @@
           <div class="config-section">
             <label for="search-method">Thuật toán sinh:</label>
             <select id="search-method" v-model="searchMethod" class="dropdown">
-              <option value="beam">Beam Search (Câu chuẩn nhất)</option>
-              <option value="topk">Top-k Sampling (5 câu đa dạng)</option>
+              <option value="beam">Một câu</option>
+              <option value="topk">Năm câu đa dạng</option>
             </select>
           </div>
 
@@ -87,7 +88,22 @@
             class="submit-btn" :class="{ 'loading': loading }">
             <span v-if="loading">Đang phân tích dữ liệu...</span>
             <span v-else>
-              {{ uploadMode === 'single' ? 'Sinh chú thích ngay!' : `Sinh chú thích cho ${filesList.length} ảnh!` }}
+              {{ uploadMode === 'single' ? 'Sinh chú thích' : `Sinh chú thích cho ${filesList.length} ảnh` }}
+            </span>
+          </button>
+
+          <button v-if="uploadMode === 'batch' && filesList.length > 0" @click="exportCocoDataset"
+            :disabled="exporting || selectedLangs.length === 0 || !currentResults || currentResults.length === 0"
+            class="export-btn" :class="{ 'loading': exporting }">
+            <span v-if="exporting">Đang đóng gói file ZIP...</span>
+            <span v-else>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" class="icon">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Xuất file
             </span>
           </button>
 
@@ -128,31 +144,24 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { aiApi } from './api' // Kết nối với file api.js mới của bạn
+import { aiApi } from './api'
 
-// Trạng thái quản lý Mode
-const uploadMode = ref('single') // 'single' hoặc 'batch'
-
-// Dữ liệu ảnh
+const uploadMode = ref('single')
 const filesList = ref([])
 const imageUrls = ref([])
-const activeIndex = ref(0) // Chỉ số ảnh đang hiển thị
+const activeIndex = ref(0)
 
-// Trạng thái cấu hình & API
 const searchMethod = ref('beam')
 const selectedLangs = ref(['vi', 'en'])
 const loading = ref(false)
+const exporting = ref(false)
 
-// Mảng 2 chiều lưu kết quả: allResults[index] = [{lang: 'vi', data: ...}, {lang: 'en', data: ...}]
 const allResults = ref([])
 
-// Lấy kết quả của ảnh hiện tại để render ra UI
 const currentResults = computed(() => {
   return allResults.value[activeIndex.value] || null;
 })
 
-// === WATCHERS ===
-// Khi đổi mode (1 Ảnh / Nhiều Ảnh), reset sạch sẽ dữ liệu
 watch(uploadMode, () => {
   filesList.value = []
   imageUrls.value = []
@@ -160,13 +169,10 @@ watch(uploadMode, () => {
   activeIndex.value = 0
 })
 
-// Khi đổi phương pháp sinh (Beam / TopK), reset kết quả để người dùng nhấn chạy lại
 watch(searchMethod, () => {
   allResults.value = new Array(filesList.value.length).fill(null)
 })
 
-
-// === XỬ LÝ FILE ===
 const onFileChange = (e) => {
   const files = Array.from(e.target.files)
   if (files.length > 0) prepareFiles(files)
@@ -179,25 +185,19 @@ const handleDrop = (e) => {
 
 const prepareFiles = (newFiles) => {
   if (uploadMode.value === 'single') {
-    // Chế độ 1 ảnh: Ghi đè file cũ
     filesList.value = [newFiles[0]]
     imageUrls.value = [URL.createObjectURL(newFiles[0])]
     allResults.value = [null]
     activeIndex.value = 0
   } else {
-    // Chế độ nhiều ảnh: Nối thêm vào mảng cũ
     filesList.value = [...filesList.value, ...newFiles]
     imageUrls.value = [...imageUrls.value, ...newFiles.map(f => URL.createObjectURL(f))]
-
-    // Khởi tạo mảng kết quả trống tương ứng với số lượng ảnh
     allResults.value = new Array(filesList.value.length).fill(null)
-
-    // Tự động nhảy UI sang ảnh vừa mới được thêm vào đầu tiên
     activeIndex.value = filesList.value.length - newFiles.length
   }
 }
 
-// === GỌI API ===
+// === GỌI API SINH CHÚ THÍCH ===
 const uploadImage = async () => {
   if (filesList.value.length === 0) return
   if (selectedLangs.value.length === 0) {
@@ -206,10 +206,8 @@ const uploadImage = async () => {
   }
 
   loading.value = true
-
   try {
     if (uploadMode.value === 'single') {
-      // --- XỬ LÝ CHẾ ĐỘ 1 ẢNH ---
       const file = filesList.value[0];
       const apiCalls = selectedLangs.value.map(async (lang) => {
         let data = searchMethod.value === 'beam'
@@ -217,12 +215,10 @@ const uploadImage = async () => {
           : await aiApi.getTopKCaptionsSingle(file, lang);
         return { lang, data };
       });
-
       const currentRes = await Promise.all(apiCalls);
       allResults.value[0] = currentRes;
 
     } else {
-      // --- XỬ LÝ CHẾ ĐỘ NHIỀU ẢNH (Gửi 1 lần mảng filesList lên Server) ---
       const apiCalls = selectedLangs.value.map(async (lang) => {
         let resultsArray = searchMethod.value === 'beam'
           ? await aiApi.getBeamCaptionBatch(filesList.value, lang)
@@ -230,10 +226,7 @@ const uploadImage = async () => {
         return { lang, resultsArray };
       });
 
-      // resolvedLangs trả về dạng: [ {lang: 'vi', resultsArray: [...]}, {lang: 'en', resultsArray: [...]} ]
       const resolvedLangs = await Promise.all(apiCalls);
-
-      // Khởi tạo lại cấu trúc mảng để map ngược vào UI
       const newAllResults = Array.from({ length: filesList.value.length }, () => []);
 
       resolvedLangs.forEach(langObj => {
@@ -242,17 +235,13 @@ const uploadImage = async () => {
           if (res.status === 'success') {
             newAllResults[index].push({
               lang: lang,
-              data: res.caption || res.captions // Tương thích cả Beam (caption) và TopK (captions)
+              data: res.caption || res.captions
             });
           } else {
-            newAllResults[index].push({
-              lang: lang,
-              error: res.message
-            });
+            newAllResults[index].push({ lang: lang, error: res.message });
           }
         });
       });
-
       allResults.value = newAllResults;
     }
   } catch (error) {
@@ -262,25 +251,59 @@ const uploadImage = async () => {
   }
 }
 
-const nextImage = () => {
-  if (activeIndex.value < imageUrls.value.length - 1) {
-    activeIndex.value++; // Tới ảnh tiếp theo
-  } else {
-    activeIndex.value = 0; // Đang ở ảnh cuối thì quay lại ảnh đầu
+// === GỌI API XUẤT FILE COCO ===
+const exportCocoDataset = async () => {
+  if (filesList.value.length === 0) return
+  if (selectedLangs.value.length === 0) {
+    alert("Vui lòng chọn ít nhất 1 ngôn ngữ để xuất dữ liệu!");
+    return;
+  }
+
+  exporting.value = true
+  try {
+    // 1. Gộp tất cả các ngôn ngữ đã chọn thành chuỗi (VD: ['vi', 'en'] -> "vi,en")
+    const exportLangsString = selectedLangs.value.join(',');
+
+    // 2. Truyền nguyên chuỗi này xuống API
+    const blob = await aiApi.exportCocoBatch(filesList.value, exportLangsString);
+
+    // Xử lý tạo link tải xuống từ Blob
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    // 3. Đặt tên file linh hoạt, thay dấu phẩy thành gạch dưới (VD: "vi_en")
+    const langName = exportLangsString.replace(/,/g, '_');
+    a.download = `sport_coco_${langName}_${filesList.value.length}_images.zip`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    // Dọn dẹp
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    alert("❌ Lỗi xuất file: " + error.message)
+  } finally {
+    exporting.value = false
   }
 }
 
-const prevImage = () => {
-  if (activeIndex.value > 0) {
-    activeIndex.value--; // Lùi lại ảnh trước
-  } else {
-    activeIndex.value = imageUrls.value.length - 1; // Đang ở ảnh đầu thì quay về ảnh cuối
+const removeImage = (index) => {
+  // Xóa ảnh khỏi mảng preview
+  imageUrls.value.splice(index, 1);
+  // Xóa ảnh khỏi mảng file thực tế gửi lên server
+  filesList.value.splice(index, 1);
+  
+  // Xử lý lùi index nếu đang xóa ảnh ở cuối mảng
+  if (activeIndex.value >= imageUrls.value.length) {
+    activeIndex.value = Math.max(0, imageUrls.value.length - 1);
   }
-}
+};
 </script>
 
 <style scoped>
-/* Reset cơ bản */
 * {
   box-sizing: border-box;
 }
@@ -305,7 +328,6 @@ const prevImage = () => {
   width: 100%;
 }
 
-/* === CỘT TRÁI === */
 .left-panel {
   flex: 1;
   width: 400px;
@@ -313,7 +335,6 @@ const prevImage = () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  /* Khoảng cách giữa Preview và Thumbnails */
 }
 
 .upload-box-fullscreen {
@@ -394,7 +415,6 @@ const prevImage = () => {
   opacity: 1;
 }
 
-/* THUMBNAIL GALLERY */
 .thumbnail-gallery {
   display: flex;
   gap: 12px;
@@ -469,7 +489,35 @@ const prevImage = () => {
   height: 12px;
 }
 
-/* === CỘT PHẢI === */
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.prev-btn {
+  left: 16px;
+}
+
+.next-btn {
+  right: 16px;
+}
+
 .right-panel {
   width: 700px;
   min-width: 450px;
@@ -533,7 +581,6 @@ const prevImage = () => {
   letter-spacing: 0.5px;
 }
 
-/* TABS CHẾ ĐỘ */
 .mode-tabs {
   display: flex;
   background: #f1f5f9;
@@ -640,21 +687,49 @@ const prevImage = () => {
   animation: pulse 1.5s infinite;
 }
 
-@keyframes pulse {
-  0% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.8;
-  }
-
-  100% {
-    opacity: 1;
-  }
+/* CSS NÚT XUẤT FILE */
+.export-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  background-color: white;
+  color: #10b981;
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
 }
 
-/* KẾT QUẢ AI */
+.export-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.export-btn:hover:not(:disabled) {
+  background-color: #ecfdf5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.export-btn:disabled {
+  border-color: #9ca3af;
+  color: #9ca3af;
+  cursor: not-allowed;
+  background-color: transparent;
+}
+
+.export-btn.loading {
+  animation: pulse 1.5s infinite;
+  border-color: #fbbf24;
+  color: #d97706;
+}
+
 .result-container {
   margin-top: 30px;
   animation: fadeIn 0.4s ease-out;
@@ -762,6 +837,20 @@ const prevImage = () => {
   line-height: 1.6;
 }
 
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -774,7 +863,6 @@ const prevImage = () => {
   }
 }
 
-/* Responsive Mobile */
 @media (max-width: 900px) {
   .dashboard-layout {
     flex-direction: column;
@@ -800,5 +888,34 @@ const prevImage = () => {
     height: auto;
     min-height: 100vh;
   }
+}
+/* Style cho nút xóa */
+.delete-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: rgba(0, 0, 0, 0.6); /* Nền đen mờ */
+  color: white;
+  border: none;
+  border-radius: 50%; /* Bo tròn nút */
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10; /* Bắt buộc để nổi lên trên ảnh và overlay */
+}
+
+/* Hiệu ứng hover bừng sáng màu đỏ */
+.delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.9); /* Màu đỏ chuẩn Tailwind */
+  transform: scale(1.1); /* Hơi phóng to nhẹ */
+}
+
+.delete-btn svg {
+  width: 20px;
+  height: 20px;
 }
 </style>
