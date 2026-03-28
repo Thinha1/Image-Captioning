@@ -83,17 +83,37 @@ export const aiApi = {
     // API MỚI: XUẤT DATASET COCO DẠNG ZIP
     // ==========================================
     
-    async exportCocoBatch(imageFilesArray, lang) {
+    async exportCocoBatch(imageFilesArray, langsString, currentResults) {
         const formData = new FormData();
+        
+        // 1. Nhồi mảng file ảnh vào
         imageFilesArray.forEach(file => formData.append('files', file));
-        formData.append('langs', lang);
+        
+        // 2. Nhồi chuỗi ngôn ngữ vào (VD: "vi,en")
+        formData.append('langs', langsString);
+
+        // 3. 🌟 GÓI KẾT QUẢ HIỆN TẠI THÀNH JSON 
+        const captionsDict = {};
+        if (currentResults && currentResults.length > 0) {
+            currentResults.forEach(item => {
+                // Tạo dictionary với key là tên file
+                captionsDict[item.filename] = {
+                    // Nếu item.caption_vi là mảng Top-K thì tuyệt vời, nếu là chuỗi đơn thì Backend vẫn tự xử lý được
+                    vi: item.caption_vi || [], 
+                    en: item.caption_en || []
+                };
+            });
+        }
+        
+        // Ép sang chuỗi JSON và nhồi vào FormData
+        formData.append('captions_data', JSON.stringify(captionsDict));
 
         try {
             const response = await apiClient.post('/export_coco_dataset', formData, {
                 // Rất quan trọng: Báo cho Axios biết đây là file nhị phân
                 responseType: 'blob' 
             });
-            return response.data; // Trả về Blob để tải xuống
+            return response.data; // Trả về Blob để tạo link tải xuống
         } catch (error) {
             throw new Error("Lỗi xuất file COCO từ server: " + error.message);
         }

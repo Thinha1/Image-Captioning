@@ -265,7 +265,7 @@ const exportCocoDataset = async () => {
     const exportLangsString = selectedLangs.value.join(',');
 
     // 2. Truyền nguyên chuỗi này xuống API
-    const blob = await aiApi.exportCocoBatch(filesList.value, exportLangsString);
+    const blob = await aiApi.exportCocoBatch(filesList.value, exportLangsString, currentResults.value);
 
     // Xử lý tạo link tải xuống từ Blob
     const url = window.URL.createObjectURL(blob);
