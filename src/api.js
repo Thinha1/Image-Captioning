@@ -86,7 +86,7 @@ export const aiApi = {
     async exportCocoBatch(imageFilesArray, lang) {
         const formData = new FormData();
         imageFilesArray.forEach(file => formData.append('files', file));
-        formData.append('lang', lang);
+        formData.append('langs', lang);
 
         try {
             const response = await apiClient.post('/export_coco_dataset', formData, {
