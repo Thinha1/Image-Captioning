@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-    baseURL: "https://ornithologic-overcleverly-mirta.ngrok-free.dev",
+    baseURL: "http://localhost:8000",
     timeout: 120000, // Tăng thời gian chờ lên 2 phút cho chế độ nhiều ảnh
 });
 
@@ -92,28 +92,64 @@ export const aiApi = {
         // 2. Nhồi chuỗi ngôn ngữ vào (VD: "vi,en")
         formData.append('langs', langsString);
 
-        // 3. 🌟 GÓI KẾT QUẢ HIỆN TẠI THÀNH JSON 
         const captionsDict = {};
+        
         if (currentResults && currentResults.length > 0) {
-            currentResults.forEach(item => {
-                // Tạo dictionary với key là tên file
-                captionsDict[item.filename] = {
-                    // Nếu item.caption_vi là mảng Top-K thì tuyệt vời, nếu là chuỗi đơn thì Backend vẫn tự xử lý được
-                    vi: item.caption_vi || [], 
-                    en: item.caption_en || []
-                };
+            
+            // 🌟 KIỂM TRA NHANH: Xem currentResults có phải chứa trực tiếp lang và data không?
+            const isDirectLangArray = currentResults[0].hasOwnProperty('lang') && currentResults[0].hasOwnProperty('data');
+
+            imageFilesArray.forEach((file, index) => {
+                const correctFileName = file.name;
+                const fileLangs = { vi: [], en: [] };
+                
+                let targetArray = null;
+
+                if (isDirectLangArray) {
+                    // Nếu là mảng trực tiếp (Trường hợp của bạn hiện tại)
+                    targetArray = currentResults;
+                } else {
+                    // Nếu là mảng chứa nhiều ảnh
+                    const item = currentResults[index]; 
+                    if (item) {
+                        const findDataArray = (obj) => {
+                            if (Array.isArray(obj) && obj.length > 0 && obj[0].hasOwnProperty('lang') && obj[0].hasOwnProperty('data')) {
+                                return obj;
+                            }
+                            if (typeof obj === 'object' && obj !== null) {
+                                for (let k in obj) {
+                                    let res = findDataArray(obj[k]);
+                                    if (res) return res;
+                                }
+                            }
+                            return null;
+                        };
+                        targetArray = findDataArray(item);
+                    }
+                }
+
+                // Trích xuất 5 câu text bỏ vào dictionary
+                if (targetArray) {
+                    targetArray.forEach(langObj => {
+                        if (langObj.lang === 'vi') fileLangs.vi = langObj.data || [];
+                        if (langObj.lang === 'en') fileLangs.en = langObj.data || [];
+                    });
+                }
+
+                captionsDict[correctFileName] = fileLangs;
             });
         }
+
+        console.log("🔥 Dữ liệu JSON CUỐI CÙNG gửi lên Backend:", captionsDict);
         
-        // Ép sang chuỗi JSON và nhồi vào FormData
+        // 4. Ép sang chuỗi JSON và nhồi vào FormData
         formData.append('captions_data', JSON.stringify(captionsDict));
 
         try {
             const response = await apiClient.post('/export_coco_dataset', formData, {
-                // Rất quan trọng: Báo cho Axios biết đây là file nhị phân
-                responseType: 'blob' 
+                responseType: 'blob' // Ép nhận file ZIP
             });
-            return response.data; // Trả về Blob để tạo link tải xuống
+            return response.data; 
         } catch (error) {
             throw new Error("Lỗi xuất file COCO từ server: " + error.message);
         }

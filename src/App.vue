@@ -254,6 +254,7 @@ const uploadImage = async () => {
 // === GỌI API XUẤT FILE COCO ===
 const exportCocoDataset = async () => {
   if (filesList.value.length === 0) return
+  console.log("Biến chứa kết quả trên màn hình lúc này là:", currentResults.value);
   if (selectedLangs.value.length === 0) {
     alert("Vui lòng chọn ít nhất 1 ngôn ngữ để xuất dữ liệu!");
     return;
