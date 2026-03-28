@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-    baseURL: "https://ornithologic-overcleverly-mirta.ngrok-free.dev ",
+    baseURL: "https://ornithologic-overcleverly-mirta.ngrok-free.dev",
     timeout: 120000, // Tăng thời gian chờ lên 2 phút cho chế độ nhiều ảnh
 });
 
